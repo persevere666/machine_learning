@@ -78,13 +78,28 @@
         )
 
 ```
-## 先看tensorflow版本的rnn
-
+## 先看tensorflow版本的rnn(是一个方法)
+1. 初始化
+```
+def rnn(
+    step_function,
+    inputs,
+    initial_states,
+    go_backwards=False,
+    mask=None,
+    constants=None,
+    unroll=False,
+    input_length=None,
+    time_major=False,
+    zero_output_for_mask=False,
+    return_all_outputs=True,
+):
+```
+2. 内部逻辑
 ```
    1. unroll==true
    
    2. unroll==false
-    ```
         while_loop_kwargs = {
             "cond": lambda time, *_: time < time_steps_t,
             "maximum_iterations": max_iterations,
@@ -142,8 +157,6 @@
                 **while_loop_kwargs,
             )
             new_states = final_outputs[2:]
-    
-```
+```    
 
-
-   
+### rnn内部的mask
