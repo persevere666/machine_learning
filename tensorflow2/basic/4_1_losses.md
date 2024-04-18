@@ -47,6 +47,7 @@ ALL_OBJECTS = {
 }
 ALL_OBJECTS_DICT = {cls.__name__.lower(): cls for cls in ALL_OBJECTS}
 ```
+
 # loss种类
 ```
 # keras/losses/__init__.py中定义 
@@ -344,4 +345,124 @@ def categorical_focal_crossentropy(
 ```
 
 ## cosine_similarity CosineSimilarity
+用于分类
+```keras/losses/losses.py
+    y_pred = normalize(y_pred, axis=axis)
+    y_true = normalize(y_true, axis=axis)
+    return -ops.sum(y_true * y_pred, axis=axis)
+```
+```keras/utils/numeric_utils.py
+def normalize(x, axis=-1, order=2):
+    from keras import ops
+
+    if isinstance(x, np.ndarray):
+        # NumPy input
+        norm = np.atleast_1d(np.linalg.norm(x, order, axis))
+        norm[norm == 0] = 1
+
+        # axis cannot be `None`
+        axis = axis or -1
+        return x / np.expand_dims(norm, axis)
+
+    # Backend tensor input
+    return ops.nn.normalize(x, axis=axis, order=order)
+```
+
+## log_cosh LogCosh
+
+```python
+    loss = mean(log(cosh(y_pred - y_true)), axis=-1)
+```
+
+```
+    log2 = ops.convert_to_tensor(ops.log(2.0), dtype=y_pred.dtype)
+
+    def _logcosh(x):
+        return x + ops.softplus(x * -2.0) - log2
+
+    return ops.mean(_logcosh(y_pred - y_true), axis=-1)
+```
+```
+ops.softplus: f(x) = log(exp(x) + 1)
+```
+
+## huber Huber
+用于回归
+```python
+for x in error:
+    if abs(x) <= delta:
+        loss.append(0.5 * x^2)
+    elif abs(x) > delta:
+        loss.append(delta * abs(x) - 0.5 * delta^2)
+
+loss = mean(loss, axis=-1)
+```
+```python
+    error = ops.subtract(y_pred, y_true)
+    abs_error = ops.abs(error)
+    half = ops.convert_to_tensor(0.5, dtype=abs_error.dtype)
+    return ops.mean(
+        ops.where(
+            abs_error <= delta,
+            half * ops.square(error),
+            delta * abs_error - half * ops.square(delta),
+        ),
+        axis=-1,
+    )
+```
+
+## hinge Hinge
+用于分类
+```python
+    loss = mean(maximum(1 - y_true * y_pred, 0), axis=-1)
+```
+```
+    Args:
+        y_true: The ground truth values. `y_true` values are expected to be -1
+            or 1. If binary (0 or 1) labels are provided they will be converted
+            to -1 or 1 with shape = `[batch_size, d0, .. dN]`.
+        y_pred: The predicted values with shape = `[batch_size, d0, .. dN]`.
+
+    Returns:
+        Hinge loss values with shape = `[batch_size, d0, .. dN-1]`.
+```
+```python
+    y_true = convert_binary_labels_to_hinge(y_true)
+    return ops.mean(ops.maximum(1.0 - y_true * y_pred, 0.0), axis=-1)
+```
+
+## squared_hinge SquaredHinge
+```python
+    loss = mean(square(maximum(1 - y_true * y_pred, 0)), axis=-1)
+```
+```python
+    y_true = convert_binary_labels_to_hinge(y_true)
+    return ops.mean(
+        ops.square(ops.maximum(1.0 - y_true * y_pred, 0.0)), axis=-1
+    )
+```
+## categorical_hinge CategoricalHinge
+```python
+    loss = maximum(neg - pos + 1, 0)
+    where `neg=maximum((1-y_true)*y_pred)` and `pos=sum(y_true*y_pred)`
+```
+
+## dice Dice
+```python
+    loss = 1 - (2 * sum(y_true * y_pred)) / (sum(y_true) + sum(y_pred))
+```
+```python
+    inputs = ops.reshape(y_true, [-1])
+    targets = ops.reshape(y_pred, [-1])
+
+    intersection = ops.sum(inputs * targets)
+    dice = ops.divide(
+        2.0 * intersection,
+        ops.sum(y_true) + ops.sum(y_pred) + backend.epsilon(),
+    )
+    return 1 - dice
+```
+
+
+
 
