@@ -134,3 +134,236 @@ F1值 = 精确率 * 召回率 * 2 / (精确率 + 召回率) （F 值即为精确
 
 随着预测为正类的阈值变化，TPR和FPR相应地变化，因此可以得到以TPR为纵坐标和FPR为横坐标的曲线，即ROC曲线，因此可以得到AUC。
 
+### 3.1 AUC
+太复杂，暂时不看
+
+### 3.2 FalseNegatives
+```python
+m = tf.keras.metrics.FalseNegatives()
+m.update_state([0, 1, 1, 1], [0, 1, 0, 0])
+m.result()
+#2.0
+
+m.reset_state()
+m.update_state([0, 1, 1, 1], [0, 1, 0, 0], sample_weight=[0, 0, 1, 0])
+m.result()
+#1.0
+```
+### 3.3 FalsePositives
+```python
+m = tf.keras.metrics.FalsePositives()
+m.update_state([0, 1, 0, 0], [0, 0, 1, 1])
+m.result()
+#2.0
+
+m.reset_state()
+m.update_state([0, 1, 0, 0], [0, 0, 1, 1], sample_weight=[0, 0, 1, 0])
+m.result()
+#1.0
+```
+
+### 3.4 PrecisionAtRecall
+Computes best precision where recall is >= specified value
+```python
+m = keras.metrics.PrecisionAtRecall(0.5)
+m.update_state([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8])
+m.result()
+#0.5
+
+m.reset_state()
+m.update_state([0, 0, 0, 1, 1], [0, 0.3, 0.8, 0.3, 0.8], sample_weight=[2, 2, 2, 1, 1])
+m.result()
+#0.33333333
+
+#Usage with `compile()` API:
+model.compile(
+    optimizer='sgd',
+    loss='binary_crossentropy',
+    metrics=[keras.metrics.PrecisionAtRecall(recall=0.8)]
+)
+```
+
+### 3.5 Recall
+    Computes the recall of the predictions with respect to the labels.
+
+    This metric creates two local variables, `true_positives` and
+    `false_negatives`, that are used to compute the recall. This value is
+    ultimately returned as `recall`, an idempotent operation that simply divides
+    `true_positives` by the sum of `true_positives` and `false_negatives`.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    If `top_k` is set, recall will be computed as how often on average a class
+    among the labels of a batch entry is in the top-k predictions.
+
+    If `class_id` is specified, we calculate recall by considering only the
+    entries in the batch for which `class_id` is in the label, and computing the
+    fraction of them for which `class_id` is above the threshold and/or in the
+    top-k predictions.
+
+    Args:
+        thresholds: (Optional) A float value, or a Python list/tuple of float
+            threshold values in `[0, 1]`. A threshold is compared with
+            prediction values to determine the truth value of predictions (i.e.,
+            above the threshold is `True`, below is `False`). If used with a
+            loss function that sets `from_logits=True` (i.e. no sigmoid
+            applied to predictions), `thresholds` should be set to 0.
+            One metric value is generated for each threshold value.
+            If neither `thresholds` nor `top_k` are set,
+            the default is to calculate recall with `thresholds=0.5`.
+        top_k: (Optional) Unset by default. An int value specifying the top-k
+            predictions to consider when calculating recall.
+        class_id: (Optional) Integer class ID for which we want binary metrics.
+            This must be in the half-open interval `[0, num_classes)`, where
+            `num_classes` is the last dimension of predictions.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+
+    Example:
+
+    >>> m = keras.metrics.Recall()
+    >>> m.update_state([0, 1, 1, 1], [1, 0, 1, 1])
+    >>> m.result()
+    0.6666667
+
+    >>> m.reset_state()
+    >>> m.update_state([0, 1, 1, 1], [1, 0, 1, 1], sample_weight=[0, 0, 1, 0])
+    >>> m.result()
+    1.0
+
+Usage with `compile()` API:
+
+```python
+model.compile(optimizer='sgd',
+                loss='binary_crossentropy',
+                metrics=[keras.metrics.Recall()])
+```
+
+Usage with a loss with `from_logits=True`:
+
+```python
+model.compile(optimizer='adam',
+                loss=keras.losses.BinaryCrossentropy(from_logits=True),
+                metrics=[keras.metrics.Recall(thresholds=0)])
+```
+
+
+### 3.6 RecallAtPrecision
+Computes best recall where precision is >= specified value.
+
+    For a given score-label-distribution the required precision might not
+    be achievable, in this case 0.0 is returned as recall.
+
+    This metric creates four local variables, `true_positives`,
+    `true_negatives`, `false_positives` and `false_negatives` that are used to
+    compute the recall at the given precision. The threshold for the given
+    precision value is computed and used to evaluate the corresponding recall.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    If `class_id` is specified, we calculate precision by considering only the
+    entries in the batch for which `class_id` is above the threshold
+    predictions, and computing the fraction of them for which `class_id` is
+    indeed a correct label.
+
+    Args:
+        precision: A scalar value in range `[0, 1]`.
+        num_thresholds: (Optional) Defaults to 200. The number of thresholds
+            to use for matching the given precision.
+        class_id: (Optional) Integer class ID for which we want binary metrics.
+            This must be in the half-open interval `[0, num_classes)`, where
+            `num_classes` is the last dimension of predictions.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+
+    Example:
+
+    >>> m = keras.metrics.RecallAtPrecision(0.8)
+    >>> m.update_state([0, 0, 1, 1], [0, 0.5, 0.3, 0.9])
+    >>> m.result()
+    0.5
+
+    >>> m.reset_state()
+    >>> m.update_state([0, 0, 1, 1], [0, 0.5, 0.3, 0.9],
+    ...                sample_weight=[1, 0, 0, 1])
+    >>> m.result()
+    1.0
+
+Usage with `compile()` API:
+```python
+model.compile(
+    optimizer='sgd',
+    loss='binary_crossentropy',
+    metrics=[keras.metrics.RecallAtPrecision(precision=0.8)])
+```
+
+
+### 3.7 SensitivityAtSpecificity
+### 3.8 SpecificityAtSensitivity
+### 3.9 TrueNegatives
+    Calculates the number of true negatives.
+
+    If `sample_weight` is given, calculates the sum of the weights of
+    true negatives. This metric creates one local variable, `accumulator`
+    that is used to keep track of the number of true negatives.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Args:
+        thresholds: (Optional) Defaults to `0.5`. A float value, or a Python
+            list/tuple of float threshold values in `[0, 1]`. A threshold is
+            compared with prediction values to determine the truth value of
+            predictions (i.e., above the threshold is `True`, below is `False`).
+            If used with a loss function that sets `from_logits=True` (i.e. no
+            sigmoid applied to predictions), `thresholds` should be set to 0.
+            One metric value is generated for each threshold value.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+
+    Example:
+
+    >>> m = keras.metrics.TrueNegatives()
+    >>> m.update_state([0, 1, 0, 0], [1, 1, 0, 0])
+    >>> m.result()
+    2.0
+
+    >>> m.reset_state()
+    >>> m.update_state([0, 1, 0, 0], [1, 1, 0, 0], sample_weight=[0, 0, 1, 0])
+    >>> m.result()
+    1.0
+
+### 3.10 TruePositives
+    Calculates the number of true positives.
+
+    If `sample_weight` is given, calculates the sum of the weights of
+    true positives. This metric creates one local variable, `true_positives`
+    that is used to keep track of the number of true positives.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Args:
+        thresholds: (Optional) Defaults to `0.5`. A float value, or a Python
+            list/tuple of float threshold values in `[0, 1]`. A threshold is
+            compared with prediction values to determine the truth value of
+            predictions (i.e., above the threshold is `True`, below is `False`).
+            If used with a loss function that sets `from_logits=True` (i.e. no
+            sigmoid applied to predictions), `thresholds` should be set to 0.
+            One metric value is generated for each threshold value.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+
+    Example:
+
+    >>> m = keras.metrics.TruePositives()
+    >>> m.update_state([0, 1, 1, 1], [1, 0, 1, 1])
+    >>> m.result()
+    2.0
+
+    >>> m.reset_state()
+    >>> m.update_state([0, 1, 1, 1], [1, 0, 1, 1], sample_weight=[0, 0, 1, 0])
+    >>> m.result()
+    1.0
